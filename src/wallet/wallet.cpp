@@ -498,5 +498,55 @@ uint64_t Wallet::estimateTransactionFee(size_t inputCount, size_t outputCount,
     return estimatedSize * feeRate;
 }
 
+std::optional<core::UTXO> Wallet::getUTXO(const core::TxOutpoint& outpoint) const {
+    if (!impl_->utxoDb) {
+        return std::nullopt;
+    }
+
+    return impl_->utxoDb->getUTXO(outpoint);
+}
+
+std::string Wallet::extractAddressFromScript(const std::vector<uint8_t>& scriptPubKey) const {
+    // P2PKH: OP_DUP OP_HASH160 <20 bytes> OP_EQUALVERIFY OP_CHECKSIG
+    if (scriptPubKey.size() == 25 &&
+        scriptPubKey[0] == 0x76 &&  // OP_DUP
+        scriptPubKey[1] == 0xa9 &&  // OP_HASH160
+        scriptPubKey[2] == 0x14 &&  // Push 20 bytes
+        scriptPubKey[23] == 0x88 && // OP_EQUALVERIFY
+        scriptPubKey[24] == 0xac) { // OP_CHECKSIG
+
+        // Extract 20-byte hash
+        std::vector<uint8_t> pubKeyHash(scriptPubKey.begin() + 3, scriptPubKey.begin() + 23);
+
+        // Encode as Base58Check address (version 0)
+        return crypto::Base58Check::encode(0x00, pubKeyHash);
+    }
+
+    // P2SH: OP_HASH160 <20 bytes> OP_EQUAL
+    if (scriptPubKey.size() == 23 &&
+        scriptPubKey[0] == 0xa9 &&  // OP_HASH160
+        scriptPubKey[1] == 0x14 &&  // Push 20 bytes
+        scriptPubKey[22] == 0x87) { // OP_EQUAL
+
+        // Extract 20-byte hash
+        std::vector<uint8_t> scriptHash(scriptPubKey.begin() + 2, scriptPubKey.begin() + 22);
+
+        // Encode as Base58Check address (version 5)
+        return crypto::Base58Check::encode(0x05, scriptHash);
+    }
+
+    // Bech32 (SegWit) - detect witness program
+    if (scriptPubKey.size() >= 4 && scriptPubKey.size() <= 42) {
+        if (scriptPubKey[0] == 0x00 || scriptPubKey[0] == 0x51) { // OP_0 or OP_1
+            // This is a witness program, encode as Bech32
+            std::vector<uint8_t> witnessData(scriptPubKey.begin() + 2, scriptPubKey.end());
+            return crypto::Bech32::encode("U", witnessData);
+        }
+    }
+
+    // Unknown format, return empty string
+    return "";
+}
+
 }  // namespace wallet
 }  // namespace ubuntu

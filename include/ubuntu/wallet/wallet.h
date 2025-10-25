@@ -206,6 +206,22 @@ public:
      */
     void setUtxoDatabase(std::shared_ptr<storage::UTXODatabase> utxoDb);
 
+    /**
+     * @brief Get UTXO by outpoint
+     *
+     * @param outpoint Transaction outpoint
+     * @return UTXO if found, nullopt otherwise
+     */
+    std::optional<core::UTXO> getUTXO(const core::TxOutpoint& outpoint) const;
+
+    /**
+     * @brief Extract address from scriptPubKey
+     *
+     * @param scriptPubKey Script public key
+     * @return Address string, or empty if cannot extract
+     */
+    std::string extractAddressFromScript(const std::vector<uint8_t>& scriptPubKey) const;
+
 private:
     struct Impl;
     std::unique_ptr<Impl> impl_;
