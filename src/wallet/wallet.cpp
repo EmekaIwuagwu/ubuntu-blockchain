@@ -437,7 +437,7 @@ std::string Wallet::createAddress(const crypto::PublicKey& publicKey, AddressTyp
         case AddressType::BECH32: {
             // Bech32 address
             auto pubKeyHash = publicKey.toHash160();
-            return crypto::Bech32::encode("u", pubKeyHash.toBytes());
+            return crypto::Bech32::encode("U", pubKeyHash.toBytes());
         }
 
         case AddressType::P2SH:

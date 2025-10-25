@@ -62,9 +62,9 @@ namespace Bech32 {
 /**
  * @brief Encode data to Bech32 string
  *
- * @param hrp Human-readable part (e.g., "u" for mainnet, "tu" for testnet)
+ * @param hrp Human-readable part (e.g., "U" for mainnet, "TU" for testnet)
  * @param data Data to encode (witness program)
- * @return Bech32-encoded string (e.g., "u1...")
+ * @return Bech32-encoded string (e.g., "U1...")
  */
 std::string encode(const std::string& hrp, std::span<const uint8_t> data);
 

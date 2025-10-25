@@ -137,7 +137,7 @@ ctest
 ./ubu-cli getbalance
 
 # Send UBU
-./ubu-cli sendtoaddress "u1recipient_address" 100.0
+./ubu-cli sendtoaddress "U1recipient_address" 100.0
 
 # List recent transactions
 ./ubu-cli listtransactions
@@ -168,7 +168,7 @@ dbcache=450
 # Mining (optional)
 mining=0
 miningthreads=0
-miningaddress=u1your_mining_address
+miningaddress=U1your_mining_address
 
 # Mempool
 maxmempool=300
