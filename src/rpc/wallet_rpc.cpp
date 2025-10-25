@@ -157,7 +157,7 @@ JsonValue WalletRpc::sendToAddress(const JsonValue& params) {
         throw std::runtime_error("Invalid parameters: expected address and amount");
     }
 
-    std::string address = params[0].getString();
+    std::string toAddress = params[0].getString();
     uint64_t amount = parseAmount(params[1]);
 
     std::string comment = "";
@@ -175,8 +175,39 @@ JsonValue WalletRpc::sendToAddress(const JsonValue& params) {
     }
 
     // Create transaction
-    std::map<std::string, uint64_t> recipients = {{address, amount}};
+    std::map<std::string, uint64_t> recipients = {{toAddress, amount}};
     auto tx = wallet_->createTransaction(recipients, feeRate, false);
+
+    // Calculate actual fee
+    uint64_t totalInput = 0;
+    uint64_t totalOutput = 0;
+
+    for (const auto& input : tx.inputs) {
+        // Get input amount from wallet's UTXO
+        auto utxo = wallet_->getUTXO(input.previousOutput);
+        if (utxo) {
+            totalInput += utxo->output.value;
+        }
+    }
+
+    for (const auto& output : tx.outputs) {
+        totalOutput += output.value;
+    }
+
+    uint64_t actualFee = totalInput - totalOutput;
+
+    // Get from addresses (inputs)
+    JsonValue fromAddresses = JsonValue::makeArray();
+    for (const auto& input : tx.inputs) {
+        auto utxo = wallet_->getUTXO(input.previousOutput);
+        if (utxo) {
+            // Extract address from scriptPubKey
+            std::string fromAddr = wallet_->extractAddressFromScript(utxo->output.scriptPubKey);
+            if (!fromAddr.empty()) {
+                fromAddresses.pushBack(JsonValue(fromAddr));
+            }
+        }
+    }
 
     // Broadcast transaction
     if (networkManager_) {
@@ -186,9 +217,27 @@ JsonValue WalletRpc::sendToAddress(const JsonValue& params) {
     // Add to wallet
     wallet_->addTransaction(tx, 0);
 
-    spdlog::info("Sent {} UBU to {}", amount / 100000000.0, address);
+    spdlog::info("Sent {} UBU to {} (fee: {} UBU)",
+                 amount / 100000000.0, toAddress, actualFee / 100000000.0);
 
-    return JsonValue(tx.getHash().toHex());
+    // Create detailed receipt
+    JsonValue result = JsonValue::makeObject();
+    result.set("txid", JsonValue(tx.getHash().toHex()));
+    result.set("from", fromAddresses);
+    result.set("to", JsonValue(toAddress));
+    result.set("amount", amountToJson(amount));
+    result.set("fee", amountToJson(actualFee));
+    result.set("total_deducted", amountToJson(amount + actualFee));
+    result.set("timestamp", JsonValue(static_cast<int64_t>(std::time(nullptr))));
+    result.set("size", JsonValue(static_cast<int64_t>(tx.getSize())));
+    result.set("confirmations", JsonValue(static_cast<int64_t>(0)));
+    result.set("status", JsonValue("pending"));
+
+    if (!comment.empty()) {
+        result.set("comment", JsonValue(comment));
+    }
+
+    return result;
 }
 
 JsonValue WalletRpc::sendMany(const JsonValue& params) {
