@@ -81,52 +81,38 @@ add_library(ubuntu_core STATIC
 
     # Consensus
     src/consensus/pow.cpp
-    src/consensus/validation.cpp
     src/consensus/chainparams.cpp
 
     # Network
     src/network/peer_manager.cpp
     src/network/protocol.cpp
-    src/network/gossip.cpp
-    src/network/discovery.cpp
+    src/network/network_manager.cpp
 
     # Storage
     src/storage/database.cpp
     src/storage/block_index.cpp
-    src/storage/tx_index.cpp
     src/storage/utxo_db.cpp
 
     # Mempool
     src/mempool/mempool.cpp
     src/mempool/fee_estimator.cpp
-    src/mempool/rbf.cpp
 
-    # Miner
-    src/miner/miner.cpp
-    src/miner/block_assembler.cpp
+    # Mining
+    src/mining/block_assembler.cpp
 
     # RPC
-    src/rpc/server.cpp
-    src/rpc/blockchain.cpp
-    src/rpc/mining.cpp
-    src/rpc/network.cpp
-    src/rpc/wallet.cpp
+    src/rpc/rpc_server.cpp
+    src/rpc/blockchain_rpc.cpp
+    src/rpc/wallet_rpc.cpp
 
     # Wallet
     src/wallet/wallet.cpp
-    src/wallet/keystore.cpp
-    src/wallet/coin_selection.cpp
 
-    # Governance
-    src/governance/proposals.cpp
-    src/governance/voting.cpp
-    src/governance/execution.cpp
+    # Config
+    src/config/config.cpp
 
-    # Utils
-    src/utils/config.cpp
-    src/utils/logging.cpp
-    src/utils/time.cpp
-    src/utils/serialization.cpp
+    # Metrics
+    src/metrics/metrics.cpp
 )
 
 target_link_libraries(ubuntu_core PUBLIC
@@ -141,11 +127,11 @@ target_link_libraries(ubuntu_core PUBLIC
 )
 
 # Node daemon executable
-add_executable(ubud src/main.cpp)
+add_executable(ubud src/daemon/ubud.cpp)
 target_link_libraries(ubud PRIVATE ubuntu_core)
 
 # CLI wallet executable
-add_executable(ubu-cli src/cli.cpp)
+add_executable(ubu-cli src/cli/ubu-cli.cpp)
 target_link_libraries(ubu-cli PRIVATE ubuntu_core)
 
 # Tests

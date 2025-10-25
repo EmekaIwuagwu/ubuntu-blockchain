@@ -1,0 +1,128 @@
+# Ubuntu Blockchain Configuration File
+# Copy this file to ~/.ubuntu-blockchain/ubuntu.conf and customize
+
+## Network Settings ##
+
+# Use testnet instead of mainnet
+#testnet=1
+
+# Use regression test mode
+#regtest=1
+
+# Listen for P2P connections on this port
+port=8333
+
+# Maximum number of inbound+outbound connections
+maxconnections=125
+
+# Connect to specific peers (can be specified multiple times)
+#connect=192.168.1.100:8333
+#connect=seed1.ubuntu-blockchain.com:8333
+
+# Add seed nodes for peer discovery
+#addnode=seed2.ubuntu-blockchain.com:8333
+
+## RPC Server Settings ##
+
+# Enable RPC server
+server=1
+
+# RPC server port
+rpcport=8332
+
+# RPC bind address (use 0.0.0.0 to listen on all interfaces)
+rpcbind=127.0.0.1
+
+# RPC authentication (REQUIRED for remote access)
+rpcuser=ubuntu
+rpcpassword=changeme_secure_password
+
+# Allow RPC connections from specific IPs
+#rpcallowip=127.0.0.1
+#rpcallowip=192.168.1.0/24
+
+## Data Storage ##
+
+# Data directory
+datadir=~/.ubuntu-blockchain
+
+# Maximum database cache size in MB
+dbcache=450
+
+# Prune old blocks (keep only last N MB)
+#prune=10000
+
+## Mining Settings ##
+
+# Enable mining
+#mining=0
+
+# Mining threads (0 = auto-detect)
+#miningthreads=0
+
+# Mining address (receives block rewards)
+#miningaddress=ubu1q...
+
+## Mempool Settings ##
+
+# Maximum mempool size in MB
+maxmempool=300
+
+# Minimum fee rate (satoshis per byte)
+minrelaytxfee=1
+
+# Maximum orphan transactions
+maxorphantx=100
+
+## Wallet Settings ##
+
+# Wallet file name
+wallet=wallet.dat
+
+# Disable wallet
+#disablewallet=0
+
+# Wallet transaction fee (satoshis per byte)
+#paytxfee=10
+
+## Performance ##
+
+# Number of script verification threads (0 = auto)
+par=0
+
+# Enable memory-mapped files for chainstate
+#usemmaps=1
+
+## Logging ##
+
+# Log level (trace, debug, info, warn, error)
+loglevel=info
+
+# Log to file
+logtofile=1
+
+# Log file path
+logfile=~/.ubuntu-blockchain/debug.log
+
+# Log categories (net, mempool, rpc, wallet, etc.)
+#debug=net
+#debug=mempool
+
+## Security ##
+
+# Enable address index (for blockchain explorers)
+#addressindex=0
+
+# Disable DNS seed lookup
+#dnsseed=1
+
+# Bind to given address and whitelist peers connecting to it
+#whitebind=127.0.0.1
+
+## Monitoring ##
+
+# Enable metrics endpoint
+#metrics=1
+
+# Metrics port
+#metricsport=9090
