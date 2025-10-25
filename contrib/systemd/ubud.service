@@ -1,0 +1,48 @@
+[Unit]
+Description=Ubuntu Blockchain Daemon
+Documentation=https://ubuntu-blockchain.org/docs
+After=network.target
+
+[Service]
+Type=notify
+ExecStart=/usr/local/bin/ubud -daemon -conf=/etc/ubuntu-blockchain/ubuntu.conf -pid=/run/ubud/ubud.pid
+ExecStop=/usr/local/bin/ubu-cli stop
+
+# Process management
+KillMode=process
+Restart=on-failure
+TimeoutStopSec=600
+TimeoutStartSec=10
+
+# User and group
+User=ubuntu-blockchain
+Group=ubuntu-blockchain
+
+# Directory creation and permissions
+RuntimeDirectory=ubud
+RuntimeDirectoryMode=0710
+ConfigurationDirectory=ubuntu-blockchain
+StateDirectory=ubuntu-blockchain
+StateDirectoryMode=0710
+
+# Hardening measures
+NoNewPrivileges=true
+PrivateTmp=true
+ProtectSystem=full
+ProtectHome=true
+ProtectKernelTunables=true
+ProtectKernelModules=true
+ProtectControlGroups=true
+ReadWritePaths=/var/lib/ubuntu-blockchain
+
+# Resource limits
+LimitNOFILE=65536
+LimitNPROC=4096
+
+# Logging
+StandardOutput=journal
+StandardError=journal
+SyslogIdentifier=ubud
+
+[Install]
+WantedBy=multi-user.target

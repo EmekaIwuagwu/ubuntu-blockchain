@@ -137,7 +137,7 @@ ctest
 ./ubu-cli getbalance
 
 # Send UBU
-./ubu-cli sendtoaddress "ubu1recipient_address" 100.0
+./ubu-cli sendtoaddress "U1recipient_address" 100.0
 
 # List recent transactions
 ./ubu-cli listtransactions
@@ -145,30 +145,46 @@ ctest
 
 ## Configuration
 
-Create a `ubu.conf` file in your data directory:
+Create a `ubuntu.conf` file in your data directory (`~/.ubuntu-blockchain/ubuntu.conf`):
 
 ```ini
 # Network settings
-listen=1
 port=8333
+maxconnections=125
+
+# RPC Server settings
+server=1
 rpcport=8332
 rpcbind=127.0.0.1
+rpcuser=ubuntu
+rpcpassword=changeme_secure_password
 
 # Data directory
-datadir=/path/to/blockchain/data
+datadir=~/.ubuntu-blockchain
+
+# Database cache (MB)
+dbcache=450
 
 # Mining (optional)
-mining=1
-mineraddress=ubu1your_mining_address
+mining=0
+miningthreads=0
+miningaddress=U1your_mining_address
+
+# Mempool
+maxmempool=300
+minrelaytxfee=1
 
 # Logging
-debug=net,mempool
-logfile=logs/debug.log
+loglevel=info
+logtofile=1
+logfile=~/.ubuntu-blockchain/debug.log
 
-# RPC authentication
-rpcuser=your_username
-rpcpassword=your_secure_password
+# Metrics (Prometheus compatible)
+metrics=1
+metricsport=9090
 ```
+
+See `ubuntu.conf.example` for all available options.
 
 ## Project Structure
 
@@ -194,42 +210,48 @@ ubuntu-blockchain/
 
 ## Development Roadmap
 
-### Phase 1: Foundation ✅ (Current)
+### Phase 1: Foundation ✅ **COMPLETE**
 - [x] Project structure and build system
-- [ ] Cryptographic primitives implementation
-- [ ] Core data structures (Block, Transaction, UTXO)
-- [ ] Basic consensus rules
+- [x] Cryptographic primitives (SHA-256, RIPEMD-160, secp256k1)
+- [x] Core data structures (Block, Transaction, UTXO)
+- [x] BIP-32/39/44 HD wallet implementation
+- [x] Base58Check and Bech32 address encoding
 
-### Phase 2: Consensus & Storage
-- [ ] RocksDB integration
-- [ ] Block validation logic
-- [ ] Merkle tree implementation
-- [ ] PoW and difficulty adjustment
-- [ ] Blockchain state machine
+### Phase 2: Consensus & Storage ✅ **COMPLETE**
+- [x] RocksDB integration with column families
+- [x] Block validation logic with full consensus rules
+- [x] Merkle tree with SPV proof support
+- [x] PoW mining and difficulty adjustment (Bitcoin-compatible)
+- [x] Blockchain state machine with reorganization
 
-### Phase 3: Networking
-- [ ] P2P protocol implementation
-- [ ] Peer discovery and management
-- [ ] Block and transaction propagation
-- [ ] Anti-DoS mechanisms
+### Phase 3: Networking ✅ **COMPLETE**
+- [x] P2P protocol implementation (Protocol Buffers)
+- [x] Peer discovery and connection management
+- [x] Block and transaction propagation (INV/GETDATA/BLOCK)
+- [x] Ban scoring and misbehavior detection
+- [x] Header-first synchronization
 
-### Phase 4: Mempool & Mining
-- [ ] Transaction pool management
-- [ ] Fee estimation
-- [ ] Mining algorithm
-- [ ] Block reward system
+### Phase 4: Mempool & Mining ✅ **COMPLETE**
+- [x] Transaction pool with priority ordering
+- [x] Fee estimation based on block history
+- [x] Replace-By-Fee (RBF) support
+- [x] Block assembly with optimal transaction selection
+- [x] Dependency tracking and conflict detection
 
-### Phase 5: RPC & Wallet
-- [ ] JSON-RPC server
-- [ ] Wallet implementation
-- [ ] CLI tools
-- [ ] API documentation
+### Phase 5: RPC & Wallet ✅ **COMPLETE**
+- [x] JSON-RPC 2.0 server (31 methods)
+- [x] HD wallet with secure key management
+- [x] CLI tools (ubu-cli)
+- [x] Transaction creation and signing
+- [x] Blockchain and wallet RPC methods
 
-### Phase 6: Production Readiness
-- [ ] On-chain governance
-- [ ] Monitoring and metrics
-- [ ] Security audit
-- [ ] Performance optimization
+### Phase 6: Production Features ⏳ **IN PROGRESS**
+- [x] Configuration file system (ubuntu.conf)
+- [x] Monitoring and metrics (Prometheus/JSON)
+- [x] Performance optimizations
+- [x] Security hardening
+- [ ] Comprehensive testing suite
+- [ ] Deployment documentation
 - [ ] Mainnet launch preparation
 
 ## Performance Targets
@@ -283,6 +305,48 @@ ctest
 # Run functional tests
 python tests/functional/run_tests.py
 ```
+
+## RPC Methods
+
+Ubuntu Blockchain provides 31 JSON-RPC 2.0 methods:
+
+### Blockchain Methods (18)
+- `getblockchaininfo` - Get blockchain status and statistics
+- `getblockcount` - Get current block height
+- `getbestblockhash` - Get hash of the best block
+- `getdifficulty` - Get current mining difficulty
+- `getchaintips` - Get information about chain tips
+- `getblock <hash>` - Get block by hash
+- `getblockhash <height>` - Get block hash by height
+- `getblockheader <hash>` - Get block header information
+- `getrawtransaction <txid>` - Get transaction by hash
+- `decoderawtransaction <hex>` - Decode raw transaction
+- `sendrawtransaction <hex>` - Broadcast transaction
+- `getmempoolinfo` - Get mempool statistics
+- `getrawmempool` - List mempool transactions
+- `getmempoolentry <txid>` - Get mempool transaction details
+- `getconnectioncount` - Get number of peers
+- `getpeerinfo` - Get detailed peer information
+- `getnetworkinfo` - Get network statistics
+- `validateaddress <address>` - Validate address format
+- `estimatefee <nblocks>` - Estimate fee for confirmation
+
+### Wallet Methods (13)
+- `getwalletinfo` - Get wallet status and balance
+- `getbalance` - Get confirmed balance
+- `getunconfirmedbalance` - Get unconfirmed balance
+- `getnewaddress [label]` - Generate new address
+- `listaddresses` - List all wallet addresses
+- `getaddressesbylabel <label>` - Get addresses by label
+- `sendtoaddress <address> <amount>` - Send to address
+- `sendmany <recipients>` - Send to multiple recipients
+- `listtransactions [count] [skip]` - List transactions
+- `gettransaction <txid>` - Get transaction details
+- `dumpprivkey <address>` - Export private key
+- `importprivkey <wif>` - Import private key
+- `backupwallet <destination>` - Backup wallet file
+
+Use `ubu-cli help <method>` for detailed usage.
 
 ## Documentation
 

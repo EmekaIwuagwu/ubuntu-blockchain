@@ -1,0 +1,56 @@
+# Build artifacts
+build/
+bin/
+lib/
+*.o
+*.a
+*.so
+*.dylib
+
+# IDE and editor files
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+.DS_Store
+
+# Git
+.git/
+.gitignore
+.gitattributes
+
+# Documentation (will be copied separately if needed)
+docs/
+*.md
+!README.md
+
+# Tests (not needed in production)
+tests/
+
+# CI/CD
+.github/
+.gitlab-ci.yml
+.travis.yml
+
+# Local development
+.env
+.env.local
+*.log
+
+# Data directories
+data/
+.ubuntu-blockchain/
+
+# Temporary files
+tmp/
+temp/
+*.tmp
+
+# Package manager
+node_modules/
+vcpkg_installed/
+
+# OS files
+Thumbs.db
+.directory
