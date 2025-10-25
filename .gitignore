@@ -1,0 +1,110 @@
+# Build directories
+build/
+cmake-build-*/
+out/
+bin/
+lib/
+
+# IDE files
+.vs/
+.vscode/
+.idea/
+*.suo
+*.user
+*.sln.docstates
+*.vcxproj.user
+
+# Compiled Object files
+*.o
+*.obj
+*.ko
+*.elf
+
+# Precompiled Headers
+*.gch
+*.pch
+
+# Compiled Dynamic libraries
+*.so
+*.dylib
+*.dll
+
+# Compiled Static libraries
+*.lai
+*.la
+*.a
+*.lib
+
+# Executables
+*.exe
+*.out
+*.app
+ubud
+ubu-cli
+ubu_tests
+ubu_bench
+
+# Debug files
+*.dSYM/
+*.su
+*.idb
+*.pdb
+
+# CMake
+CMakeCache.txt
+CMakeFiles/
+cmake_install.cmake
+CTestTestfile.cmake
+compile_commands.json
+
+# Package managers
+vcpkg_installed/
+packages/
+
+# Blockchain data
+data/
+blocks/
+chainstate/
+wallets/
+*.dat
+*.log
+
+# Test outputs
+Testing/
+test_results/
+
+# Logs
+logs/
+*.log
+
+# Backup files
+*.bak
+*.backup
+*~
+
+# OS files
+.DS_Store
+Thumbs.db
+desktop.ini
+
+# Documentation build
+docs/_build/
+docs/html/
+docs/latex/
+
+# Profiling and coverage
+*.gcda
+*.gcno
+*.gcov
+coverage/
+*.profdata
+*.profraw
+
+# Fuzzing corpus
+corpus/
+crashes/
+
+# Temporary files
+*.tmp
+*.swp
+*.swo
