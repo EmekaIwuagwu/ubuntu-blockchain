@@ -61,7 +61,7 @@ dbcache=450
 #miningthreads=0
 
 # Mining address (receives block rewards)
-#miningaddress=ubu1q...
+#miningaddress=u1q...
 
 ## Mempool Settings ##
 

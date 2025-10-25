@@ -125,13 +125,13 @@ TEST(Base58Test, DecodeCheckFailsOnBadChecksum) {
 // ===== Bech32 Tests =====
 
 TEST(Bech32Test, EncodeDecode) {
-    std::string hrp = "ubu";
+    std::string hrp = "u";
     std::vector<uint8_t> data = {0x00, 0x14, 0x75, 0x1e, 0x76};
-    
+
     auto encoded = Bech32::encode(hrp, data);
     EXPECT_FALSE(encoded.empty());
-    EXPECT_EQ(encoded.substr(0, 4), "ubu1");
-    
+    EXPECT_EQ(encoded.substr(0, 2), "u1");
+
     auto [decodedHrp, decodedData] = Bech32::decode(encoded);
     EXPECT_EQ(hrp, decodedHrp);
     EXPECT_EQ(data, decodedData);
