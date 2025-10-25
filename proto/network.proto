@@ -1,0 +1,161 @@
+syntax = "proto3";
+
+package ubuntu.network;
+
+// Network message wrapper
+message NetworkMessage {
+    uint32 magic = 1;           // Network magic bytes (mainnet/testnet)
+    string command = 2;          // Message type (version, block, tx, etc.)
+    uint32 length = 3;           // Payload length
+    bytes checksum = 4;          // First 4 bytes of SHA256d(payload)
+    bytes payload = 5;           // Actual message data
+}
+
+// Version message (handshake)
+message VersionMessage {
+    uint32 protocol_version = 1;  // e.g., 70015
+    uint64 services = 2;           // NODE_NETWORK, etc.
+    int64 timestamp = 3;           // Unix timestamp
+    NetAddress addr_recv = 4;      // Receiver's address
+    NetAddress addr_from = 5;      // Sender's address
+    uint64 nonce = 6;              // Random nonce (prevent self-connection)
+    string user_agent = 7;         // e.g., "/UbuntuBlockchain:1.0.0/"
+    uint32 start_height = 8;       // Current blockchain height
+    bool relay = 9;                // Accept transaction broadcasts
+}
+
+// Network address
+message NetAddress {
+    uint64 services = 1;           // Service flags
+    bytes ip = 2;                  // IPv4 (4 bytes) or IPv6 (16 bytes)
+    uint32 port = 3;               // Port number
+    int64 timestamp = 4;           // Last seen time (optional)
+}
+
+// Inventory vector (for announcing blocks/txs)
+message InvVector {
+    enum Type {
+        ERROR = 0;
+        TX = 1;
+        BLOCK = 2;
+        FILTERED_BLOCK = 3;
+        COMPACT_BLOCK = 4;
+    }
+    Type type = 1;
+    bytes hash = 2;                // 32-byte hash
+}
+
+// Inventory message (announce blocks/txs available)
+message InvMessage {
+    repeated InvVector inventory = 1;
+}
+
+// GetData message (request blocks/txs)
+message GetDataMessage {
+    repeated InvVector inventory = 1;
+}
+
+// Block message
+message BlockMessage {
+    uint32 version = 1;
+    bytes previous_block_hash = 2;
+    bytes merkle_root = 3;
+    uint32 timestamp = 4;
+    uint32 difficulty = 5;
+    uint32 nonce = 6;
+    repeated TransactionMessage transactions = 7;
+}
+
+// Transaction message
+message TransactionMessage {
+    uint32 version = 1;
+    repeated TxInput inputs = 2;
+    repeated TxOutput outputs = 3;
+    uint32 lock_time = 4;
+}
+
+message TxInput {
+    bytes previous_tx_hash = 1;
+    uint32 previous_output_index = 2;
+    bytes script_sig = 3;
+    uint32 sequence = 4;
+}
+
+message TxOutput {
+    uint64 value = 1;
+    bytes script_pubkey = 2;
+}
+
+// GetHeaders message (request block headers)
+message GetHeadersMessage {
+    uint32 version = 1;
+    repeated bytes block_locator_hashes = 2;  // Starting points
+    bytes hash_stop = 3;                       // Stop at this hash (or zero for all)
+}
+
+// Headers message (response to GetHeaders)
+message HeadersMessage {
+    repeated BlockHeader headers = 1;
+}
+
+message BlockHeader {
+    uint32 version = 1;
+    bytes previous_block_hash = 2;
+    bytes merkle_root = 3;
+    uint32 timestamp = 4;
+    uint32 difficulty = 5;
+    uint32 nonce = 6;
+    uint32 tx_count = 7;  // Always 0 for headers message
+}
+
+// Ping/Pong for keepalive
+message PingMessage {
+    uint64 nonce = 1;
+}
+
+message PongMessage {
+    uint64 nonce = 1;
+}
+
+// GetAddr message (request peer addresses)
+message GetAddrMessage {
+    // No payload
+}
+
+// Addr message (send peer addresses)
+message AddrMessage {
+    repeated NetAddress addresses = 1;
+}
+
+// Mempool request
+message MempoolMessage {
+    // No payload - requests mempool inventory
+}
+
+// Reject message (for protocol violations)
+message RejectMessage {
+    string message = 1;          // Message type being rejected
+    uint32 code = 2;             // Rejection code
+    string reason = 3;           // Human-readable reason
+    bytes extra_data = 4;        // Optional extra data (e.g., tx/block hash)
+}
+
+// Compact block (BIP-152 style)
+message CompactBlockMessage {
+    BlockHeader header = 1;
+    uint64 nonce = 2;
+    repeated uint64 short_txids = 3;  // 6-byte transaction IDs
+    repeated TransactionMessage prefilled = 4;  // Transactions assumed not in mempool
+}
+
+// GetBlockTxn (request missing transactions from compact block)
+message GetBlockTxnMessage {
+    bytes block_hash = 1;
+    repeated uint32 tx_indexes = 2;
+}
+
+// BlockTxn (send missing transactions)
+message BlockTxnMessage {
+    bytes block_hash = 1;
+    repeated TransactionMessage transactions = 2;
+}
