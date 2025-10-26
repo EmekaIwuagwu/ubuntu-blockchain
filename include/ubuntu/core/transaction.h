@@ -47,12 +47,32 @@ struct TxInput {
 
     TxInput() : sequence(0xFFFFFFFF) {}
 
-    // Serialization
+    // Serialization (non-witness format)
     std::vector<uint8_t> serialize() const;
+    std::vector<uint8_t> serializeWitnessStripped() const;  // Without scriptSig
     static TxInput deserialize(std::span<const uint8_t> data, size_t& offset);
 
     // Check if this is a coinbase input
     bool isCoinbase() const;
+};
+
+/**
+ * @brief Transaction witness data (SegWit-style)
+ *
+ * Separates signature data from transaction ID computation to prevent
+ * transaction malleability attacks (CVSS 8.1).
+ */
+struct TxWitness {
+    std::vector<std::vector<uint8_t>> scriptWitness;  // Witness stack
+
+    TxWitness() = default;
+
+    // Serialization
+    std::vector<uint8_t> serialize() const;
+    static TxWitness deserialize(std::span<const uint8_t> data, size_t& offset);
+
+    // Check if witness is empty
+    bool isEmpty() const { return scriptWitness.empty(); }
 };
 
 /**
@@ -76,31 +96,51 @@ struct TxOutput {
 
 /**
  * @brief Transaction
+ *
+ * Implements SegWit-style transaction format with separated witness data
+ * to prevent transaction malleability (CVSS 8.1).
  */
 class Transaction {
 public:
-    static constexpr uint32_t CURRENT_VERSION = 1;
+    static constexpr uint32_t CURRENT_VERSION = 2;  // Version 2 for witness support
     static constexpr uint64_t COIN = 100000000;  // 1 UBU = 10^8 satoshis
+    static constexpr uint8_t WITNESS_MARKER = 0x00;
+    static constexpr uint8_t WITNESS_FLAG = 0x01;
 
     uint32_t version;
     std::vector<TxInput> inputs;
     std::vector<TxOutput> outputs;
+    std::vector<TxWitness> witnesses;  // Witness data (one per input)
     uint32_t lockTime;  // Block height or timestamp
 
     Transaction() : version(CURRENT_VERSION), lockTime(0) {}
 
-    // Hashing
+    // Hashing - MALLEABILITY FIX
+    // getHash() computes witness-stripped txid (canonical transaction ID)
+    // This prevents malleability as signatures are excluded from txid
     crypto::Hash256 getHash() const;
-    crypto::Hash256 getSignatureHash(size_t inputIndex) const;
+
+    // getWitnessHash() includes witness data (wtxid for block commitment)
+    crypto::Hash256 getWitnessHash() const;
+
+    // BIP-143 signature hash for witness transactions
+    crypto::Hash256 getSignatureHash(size_t inputIndex,
+                                     const std::vector<uint8_t>& scriptCode,
+                                     uint64_t amount,
+                                     uint32_t hashType = 1) const;
 
     // Serialization
-    std::vector<uint8_t> serialize() const;
+    std::vector<uint8_t> serialize() const;  // Full serialization with witness
+    std::vector<uint8_t> serializeWitnessStripped() const;  // Without witness
     static Transaction deserialize(std::span<const uint8_t> data);
 
     // Validation
     bool isCoinbase() const;
     bool isNull() const;
-    size_t getSize() const;
+    bool hasWitness() const;
+    size_t getSize() const;  // Full size with witness
+    size_t getBaseSize() const;  // Size without witness
+    size_t getWeight() const;  // Weight units (base*3 + full)
     uint64_t getTotalOutput() const;
 
     // Fee calculation (requires UTXO set to get input values)
