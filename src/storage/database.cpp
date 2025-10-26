@@ -337,26 +337,55 @@ void Database::WriteBatchWrapper::put(ColumnFamily cf,
     batch_->Put(db_->getColumnFamily(cf), keySlice, valueSlice);
 }
 
+void Database::WriteBatchWrapper::put(ColumnFamily cf,
+                                      const std::string& key,
+                                      const std::string& value) {
+    put(cf,
+        std::span<const uint8_t>(reinterpret_cast<const uint8_t*>(key.data()), key.size()),
+        std::span<const uint8_t>(reinterpret_cast<const uint8_t*>(value.data()), value.size()));
+}
+
 void Database::WriteBatchWrapper::remove(ColumnFamily cf,
                                          std::span<const uint8_t> key) {
     rocksdb::Slice keySlice(reinterpret_cast<const char*>(key.data()), key.size());
     batch_->Delete(db_->getColumnFamily(cf), keySlice);
 }
 
-bool Database::WriteBatchWrapper::commit() {
+bool Database::WriteBatchWrapper::commit(bool sync) {
     if (!db_->isOpen()) {
-        spdlog::error("Database not open");
+        spdlog::error("Database not open - cannot commit batch");
         return false;
     }
 
-    rocksdb::Status status = db_->db_->Write(rocksdb::WriteOptions(), batch_.get());
+    // Configure write options
+    rocksdb::WriteOptions writeOptions;
+    writeOptions.sync = sync;  // Force sync to disk if requested
+
+    // Disable write-ahead log for performance if not syncing
+    // (WAL still provides crash recovery even without sync)
+    writeOptions.disableWAL = false;
+
+    // Commit the batch atomically
+    rocksdb::Status status = db_->db_->Write(writeOptions, batch_.get());
 
     if (!status.ok()) {
-        spdlog::error("Batch write failed: {}", status.ToString());
+        spdlog::error("Atomic batch write failed: {}", status.ToString());
         return false;
+    }
+
+    if (sync) {
+        spdlog::debug("Atomic batch committed with sync ({} operations)", count());
     }
 
     return true;
+}
+
+size_t Database::WriteBatchWrapper::count() const {
+    return batch_->Count();
+}
+
+void Database::WriteBatchWrapper::clear() {
+    batch_->Clear();
 }
 
 Database::WriteBatchWrapper Database::createBatch() {

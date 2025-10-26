@@ -120,20 +120,53 @@ public:
     bool exists(ColumnFamily cf, std::span<const uint8_t> key) const;
 
     /**
-     * @brief Batch write operations
+     * @brief Batch write operations for atomic updates
+     *
+     * Provides ACID guarantees:
+     * - Atomicity: All operations in batch succeed or fail together
+     * - Consistency: Database state remains valid
+     * - Isolation: Batch is isolated from other writes until commit
+     * - Durability: With sync=true, changes are persisted to disk
      */
     class WriteBatchWrapper {
     public:
         explicit WriteBatchWrapper(Database* db);
         ~WriteBatchWrapper();
 
+        /**
+         * @brief Add put operation to batch
+         */
         void put(ColumnFamily cf,
                  std::span<const uint8_t> key,
                  std::span<const uint8_t> value);
 
+        /**
+         * @brief Add put operation to batch (string overload)
+         */
+        void put(ColumnFamily cf, const std::string& key, const std::string& value);
+
+        /**
+         * @brief Add remove operation to batch
+         */
         void remove(ColumnFamily cf, std::span<const uint8_t> key);
 
-        bool commit();
+        /**
+         * @brief Commit batch atomically
+         *
+         * @param sync If true, wait for data to be written to disk (slower but safer)
+         * @return true if successful
+         */
+        bool commit(bool sync = false);
+
+        /**
+         * @brief Get number of operations in batch
+         */
+        size_t count() const;
+
+        /**
+         * @brief Clear all operations from batch
+         */
+        void clear();
 
     private:
         Database* db_;
