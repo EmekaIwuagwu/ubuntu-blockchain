@@ -47,7 +47,7 @@ We are committed to providing a welcoming and inclusive environment for all cont
 
 ### Reporting
 
-Report violations to: conduct@ubuntu-blockchain.com
+Report violations to: conduct@ubuntublockchain.xyz
 
 ---
 
@@ -598,7 +598,7 @@ Update CHANGELOG.md for all changes:
 - **GitHub Discussions**: General questions, ideas
 - **Discord**: https://discord.gg/ubuntu-blockchain
 - **Twitter**: @UbuntuBlockchain
-- **Email**: dev@ubuntu-blockchain.com
+- **Email**: dev@ubuntublockchain.xyz
 
 ### Getting Help
 
@@ -643,7 +643,7 @@ See [LICENSE](LICENSE) for details.
 Don't hesitate to ask! We're here to help:
 
 - **Discord**: https://discord.gg/ubuntu-blockchain
-- **Email**: dev@ubuntu-blockchain.com
+- **Email**: dev@ubuntublockchain.xyz
 - **GitHub Discussions**: https://github.com/EmekaIwuagwu/ubuntu-blockchain/discussions
 
 Thank you for contributing to Ubuntu Blockchain!

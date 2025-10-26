@@ -357,7 +357,7 @@ ubu-cli getnetworkinfo
 
 # Add seed nodes manually
 # Edit ubuntu.conf:
-addnode=seed1.ubuntu-blockchain.com:8333
+addnode=seed1.ubuntublockchain.xyz:8333
 ```
 
 ### High Memory Usage
@@ -424,10 +424,10 @@ par=8              # Script verification threads
 
 ## Support
 
-- Documentation: https://ubuntu-blockchain.org/docs
+- Documentation: https://ubuntublockchain.xyz/docs
 - GitHub Issues: https://github.com/UbuntuBlockchain/ubuntu-blockchain/issues
 - Discord: https://discord.gg/ubuntu-blockchain
-- Email: support@ubuntu-blockchain.org
+- Email: support@ubuntublockchain.xyz
 
 ---
 

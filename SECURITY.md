@@ -22,8 +22,8 @@
 
 If you discover a security vulnerability, please follow these steps:
 
-1. **Email**: Send details to security@ubuntu-blockchain.com
-2. **Encrypt**: Use our PGP key (available at https://ubuntu-blockchain.com/security-pgp.txt)
+1. **Email**: Send details to security@ubuntublockchain.xyz
+2. **Encrypt**: Use our PGP key (available at https://ubuntublockchain.xyz/security-pgp.txt)
 3. **Include**:
    - Description of the vulnerability
    - Steps to reproduce
@@ -534,7 +534,7 @@ We welcome security audits from:
 - Security research firms
 - Independent security researchers
 
-Contact: security@ubuntu-blockchain.com
+Contact: security@ubuntublockchain.xyz
 
 ---
 
@@ -549,8 +549,8 @@ Contact: security@ubuntu-blockchain.com
 
 ### Subscribing to Security Announcements
 
-- **Mailing List**: security-announce@ubuntu-blockchain.com
-- **RSS Feed**: https://ubuntu-blockchain.com/security/feed
+- **Mailing List**: security-announce@ubuntublockchain.xyz
+- **RSS Feed**: https://ubuntublockchain.xyz/security/feed
 - **GitHub Security Advisories**: Watch repository
 
 ---
@@ -574,9 +574,9 @@ Consult legal counsel for compliance requirements.
 
 ### Official Resources
 
-- **Website**: https://ubuntu-blockchain.com/security
-- **Security Guide**: https://docs.ubuntu-blockchain.com/security
-- **CVE List**: https://ubuntu-blockchain.com/security/cve
+- **Website**: https://ubuntublockchain.xyz/security
+- **Security Guide**: https://docs.ubuntublockchain.xyz/security
+- **CVE List**: https://ubuntublockchain.xyz/security/cve
 
 ### External Resources
 
@@ -606,4 +606,4 @@ We thank the security research community for their contributions to blockchain s
 
 **Remember**: Security is a process, not a product. Stay vigilant, keep learning, and always question assumptions.
 
-For questions or concerns, contact: security@ubuntu-blockchain.com
+For questions or concerns, contact: security@ubuntublockchain.xyz

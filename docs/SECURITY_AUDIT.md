@@ -2648,16 +2648,16 @@ upnp=0
 ### Emergency Contacts
 
 ```
-Security Team Lead: security@ubuntu-blockchain.org
+Security Team Lead: security@ubuntublockchain.xyz
 PGP Key: [public key fingerprint]
 Emergency Hotline: +XXX-XXX-XXXX (24/7)
-Bug Bounty: https://ubuntu-blockchain.org/security/bounty
+Bug Bounty: https://ubuntublockchain.xyz/security/bounty
 ```
 
 ### Vulnerability Disclosure
 
 **Responsible Disclosure Policy:**
-- Email: security@ubuntu-blockchain.org (PGP encrypted)
+- Email: security@ubuntublockchain.xyz (PGP encrypted)
 - Response time: 48 hours for acknowledgment
 - Coordinated disclosure: 90 days
 - Bug bounty: $100 - $10,000 UBU
