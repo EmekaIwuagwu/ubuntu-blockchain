@@ -1,4 +1,5 @@
 #include "ubuntu/rpc/rpc_server.h"
+#include "ubuntu/rpc/auth_manager.h"
 
 #include <spdlog/spdlog.h>
 
@@ -503,6 +504,7 @@ struct RpcServer::Impl {
     bool authEnabled;
     std::string username;
     std::string password;
+    std::unique_ptr<AuthenticationManager> authManager;
 };
 
 RpcServer::RpcServer(const std::string& bindAddress, uint16_t port)
@@ -511,6 +513,11 @@ RpcServer::RpcServer(const std::string& bindAddress, uint16_t port)
     impl_->port = port;
     impl_->running = false;
     impl_->authEnabled = false;
+
+    // Initialize authentication manager
+    AuthenticationManager::Config authConfig;
+    authConfig.requireAuth = false;  // Disabled by default
+    impl_->authManager = std::make_unique<AuthenticationManager>(authConfig);
 }
 
 RpcServer::~RpcServer() {
@@ -572,10 +579,56 @@ std::string RpcServer::processRequest(const std::string& request) {
 void RpcServer::setAuth(const std::string& username, const std::string& password) {
     impl_->username = username;
     impl_->password = password;
+
+    // Add user to authentication manager
+    if (!impl_->authManager->addUser(username, password)) {
+        spdlog::error("Failed to add RPC user: {}", username);
+    } else {
+        spdlog::info("RPC user '{}' configured", username);
+    }
 }
 
 void RpcServer::setAuthEnabled(bool enabled) {
     impl_->authEnabled = enabled;
+    spdlog::info("RPC authentication {}", enabled ? "enabled" : "disabled");
+}
+
+std::string RpcServer::processAuthenticatedRequest(const std::string& request,
+                                                   const std::string& authToken,
+                                                   const std::string& clientIP) {
+    // Check if authentication is required
+    if (!impl_->authEnabled) {
+        return processRequest(request);
+    }
+
+    // Check if IP is banned
+    if (!clientIP.empty() && impl_->authManager->isBanned(clientIP)) {
+        JsonValue errorResp = createErrorResponse(
+            JsonValue(),
+            ErrorCode::RPC_AUTH_IP_BANNED,
+            "IP address is banned due to repeated authentication failures");
+        return errorResp.toJsonString();
+    }
+
+    // Validate token
+    if (authToken.empty() || !impl_->authManager->validateToken(authToken)) {
+        JsonValue errorResp = createErrorResponse(
+            JsonValue(),
+            ErrorCode::RPC_AUTH_REQUIRED,
+            "Authentication required. Please provide a valid session token.");
+        return errorResp.toJsonString();
+    }
+
+    // Process the authenticated request
+    return processRequest(request);
+}
+
+AuthenticationManager& RpcServer::getAuthManager() {
+    return *impl_->authManager;
+}
+
+const AuthenticationManager& RpcServer::getAuthManager() const {
+    return *impl_->authManager;
 }
 
 JsonValue RpcServer::handleCall(const JsonValue& request) {
