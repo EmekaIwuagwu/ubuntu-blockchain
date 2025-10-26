@@ -113,6 +113,63 @@ bool TxInput::isCoinbase() const {
            previousOutput.vout == 0xFFFFFFFF;
 }
 
+std::vector<uint8_t> TxInput::serializeWitnessStripped() const {
+    std::vector<uint8_t> result;
+
+    // Serialize previous output
+    auto outpointData = previousOutput.serialize();
+    result.insert(result.end(), outpointData.begin(), outpointData.end());
+
+    // Empty scriptSig (witness-stripped format)
+    result.push_back(0);
+
+    // Serialize sequence
+    result.push_back(sequence & 0xFF);
+    result.push_back((sequence >> 8) & 0xFF);
+    result.push_back((sequence >> 16) & 0xFF);
+    result.push_back((sequence >> 24) & 0xFF);
+
+    return result;
+}
+
+// ============================================================================
+// TxWitness Implementation
+// ============================================================================
+
+std::vector<uint8_t> TxWitness::serialize() const {
+    std::vector<uint8_t> result;
+
+    // Witness stack item count
+    result.push_back(static_cast<uint8_t>(scriptWitness.size()));
+
+    // Serialize each witness stack item
+    for (const auto& item : scriptWitness) {
+        size_t itemLen = item.size();
+        result.push_back(static_cast<uint8_t>(itemLen));
+        result.insert(result.end(), item.begin(), item.end());
+    }
+
+    return result;
+}
+
+TxWitness TxWitness::deserialize(std::span<const uint8_t> data, size_t& offset) {
+    TxWitness witness;
+
+    // Read stack item count
+    uint8_t stackCount = data[offset++];
+
+    // Deserialize each witness stack item
+    for (size_t i = 0; i < stackCount; ++i) {
+        uint8_t itemLen = data[offset++];
+        std::vector<uint8_t> item(itemLen);
+        std::copy(data.begin() + offset, data.begin() + offset + itemLen, item.begin());
+        offset += itemLen;
+        witness.scriptWitness.push_back(std::move(item));
+    }
+
+    return witness;
+}
+
 // ============================================================================
 // TxOutput Implementation
 // ============================================================================
@@ -162,21 +219,103 @@ bool TxOutput::isDust(uint64_t dustThreshold) const {
 // ============================================================================
 
 crypto::Hash256 Transaction::getHash() const {
+    // MALLEABILITY FIX: Use witness-stripped serialization for txid
+    // This makes the transaction ID independent of signature data,
+    // preventing malleability attacks where signatures can be modified
+    // without invalidating the transaction.
+    auto serialized = serializeWitnessStripped();
+    return crypto::sha256d(std::span<const uint8_t>(serialized.data(),
+                                                      serialized.size()));
+}
+
+crypto::Hash256 Transaction::getWitnessHash() const {
+    // Witness transaction ID includes all witness data
+    // Used for block witness commitment (BIP-141)
     auto serialized = serialize();
     return crypto::sha256d(std::span<const uint8_t>(serialized.data(),
                                                       serialized.size()));
 }
 
-crypto::Hash256 Transaction::getSignatureHash(size_t inputIndex) const {
-    // Simplified signature hash computation
-    // Full implementation would follow BIP-143 for SegWit
+crypto::Hash256 Transaction::getSignatureHash(size_t inputIndex,
+                                              const std::vector<uint8_t>& scriptCode,
+                                              uint64_t amount,
+                                              uint32_t hashType) const {
+    // BIP-143 signature hash for witness transactions
+    // This prevents quadratic hashing complexity and enables hardware wallets
+    // to verify transaction amount without full UTXO set
+
     if (inputIndex >= inputs.size()) {
         throw std::out_of_range("Invalid input index");
     }
 
-    auto serialized = serialize();
-    return crypto::sha256d(std::span<const uint8_t>(serialized.data(),
-                                                      serialized.size()));
+    std::vector<uint8_t> data;
+
+    // 1. nVersion (4 bytes)
+    for (int i = 0; i < 4; ++i) {
+        data.push_back((version >> (i * 8)) & 0xFF);
+    }
+
+    // 2. hashPrevouts (32 bytes) - hash of all input outpoints
+    std::vector<uint8_t> prevouts;
+    for (const auto& input : inputs) {
+        auto outpointData = input.previousOutput.serialize();
+        prevouts.insert(prevouts.end(), outpointData.begin(), outpointData.end());
+    }
+    auto hashPrevouts = crypto::sha256d(
+        std::span<const uint8_t>(prevouts.data(), prevouts.size()));
+    data.insert(data.end(), hashPrevouts.begin(), hashPrevouts.end());
+
+    // 3. hashSequence (32 bytes) - hash of all input sequences
+    std::vector<uint8_t> sequences;
+    for (const auto& input : inputs) {
+        for (int i = 0; i < 4; ++i) {
+            sequences.push_back((input.sequence >> (i * 8)) & 0xFF);
+        }
+    }
+    auto hashSequence = crypto::sha256d(
+        std::span<const uint8_t>(sequences.data(), sequences.size()));
+    data.insert(data.end(), hashSequence.begin(), hashSequence.end());
+
+    // 4. outpoint of this input (36 bytes)
+    auto outpointData = inputs[inputIndex].previousOutput.serialize();
+    data.insert(data.end(), outpointData.begin(), outpointData.end());
+
+    // 5. scriptCode (with length prefix)
+    data.push_back(static_cast<uint8_t>(scriptCode.size()));
+    data.insert(data.end(), scriptCode.begin(), scriptCode.end());
+
+    // 6. value (8 bytes)
+    for (int i = 0; i < 8; ++i) {
+        data.push_back((amount >> (i * 8)) & 0xFF);
+    }
+
+    // 7. sequence of this input (4 bytes)
+    for (int i = 0; i < 4; ++i) {
+        data.push_back((inputs[inputIndex].sequence >> (i * 8)) & 0xFF);
+    }
+
+    // 8. hashOutputs (32 bytes) - hash of all outputs
+    std::vector<uint8_t> outputsData;
+    for (const auto& output : outputs) {
+        auto outputBytes = output.serialize();
+        outputsData.insert(outputsData.end(), outputBytes.begin(), outputBytes.end());
+    }
+    auto hashOutputs = crypto::sha256d(
+        std::span<const uint8_t>(outputsData.data(), outputsData.size()));
+    data.insert(data.end(), hashOutputs.begin(), hashOutputs.end());
+
+    // 9. nLocktime (4 bytes)
+    for (int i = 0; i < 4; ++i) {
+        data.push_back((lockTime >> (i * 8)) & 0xFF);
+    }
+
+    // 10. hash type (4 bytes)
+    for (int i = 0; i < 4; ++i) {
+        data.push_back((hashType >> (i * 8)) & 0xFF);
+    }
+
+    // Compute double SHA256
+    return crypto::sha256d(std::span<const uint8_t>(data.data(), data.size()));
 }
 
 std::vector<uint8_t> Transaction::serialize() const {
@@ -188,12 +327,69 @@ std::vector<uint8_t> Transaction::serialize() const {
     result.push_back((version >> 16) & 0xFF);
     result.push_back((version >> 24) & 0xFF);
 
+    // Check if transaction has witness data
+    bool hasWit = hasWitness();
+
+    if (hasWit) {
+        // Witness marker and flag (BIP-144)
+        result.push_back(WITNESS_MARKER);  // 0x00
+        result.push_back(WITNESS_FLAG);     // 0x01
+    }
+
     // Input count
     result.push_back(static_cast<uint8_t>(inputs.size()));
 
     // Inputs
     for (const auto& input : inputs) {
         auto inputData = input.serialize();
+        result.insert(result.end(), inputData.begin(), inputData.end());
+    }
+
+    // Output count
+    result.push_back(static_cast<uint8_t>(outputs.size()));
+
+    // Outputs
+    for (const auto& output : outputs) {
+        auto outputData = output.serialize();
+        result.insert(result.end(), outputData.begin(), outputData.end());
+    }
+
+    // Witness data (if present)
+    if (hasWit) {
+        for (const auto& witness : witnesses) {
+            auto witnessData = witness.serialize();
+            result.insert(result.end(), witnessData.begin(), witnessData.end());
+        }
+    }
+
+    // Locktime (4 bytes)
+    result.push_back(lockTime & 0xFF);
+    result.push_back((lockTime >> 8) & 0xFF);
+    result.push_back((lockTime >> 16) & 0xFF);
+    result.push_back((lockTime >> 24) & 0xFF);
+
+    return result;
+}
+
+std::vector<uint8_t> Transaction::serializeWitnessStripped() const {
+    // Serialize transaction WITHOUT witness data
+    // This format is used for transaction ID computation to prevent malleability
+    std::vector<uint8_t> result;
+
+    // Version (4 bytes)
+    result.push_back(version & 0xFF);
+    result.push_back((version >> 8) & 0xFF);
+    result.push_back((version >> 16) & 0xFF);
+    result.push_back((version >> 24) & 0xFF);
+
+    // NO witness marker/flag in witness-stripped format
+
+    // Input count
+    result.push_back(static_cast<uint8_t>(inputs.size()));
+
+    // Inputs (witness-stripped - scriptSig empty)
+    for (const auto& input : inputs) {
+        auto inputData = input.serializeWitnessStripped();
         result.insert(result.end(), inputData.begin(), inputData.end());
     }
 
@@ -226,6 +422,15 @@ Transaction Transaction::deserialize(std::span<const uint8_t> data) {
                  (data[offset + 3] << 24);
     offset += 4;
 
+    // Check for witness marker and flag (BIP-144)
+    bool hasWitness = false;
+    if (offset + 2 <= data.size() &&
+        data[offset] == WITNESS_MARKER &&
+        data[offset + 1] == WITNESS_FLAG) {
+        hasWitness = true;
+        offset += 2;
+    }
+
     // Input count
     uint8_t inputCount = data[offset++];
 
@@ -240,6 +445,13 @@ Transaction Transaction::deserialize(std::span<const uint8_t> data) {
     // Outputs
     for (size_t i = 0; i < outputCount; ++i) {
         tx.outputs.push_back(TxOutput::deserialize(data, offset));
+    }
+
+    // Witness data (if present)
+    if (hasWitness) {
+        for (size_t i = 0; i < inputCount; ++i) {
+            tx.witnesses.push_back(TxWitness::deserialize(data, offset));
+        }
     }
 
     // Locktime
@@ -259,8 +471,35 @@ bool Transaction::isNull() const {
     return inputs.empty() && outputs.empty();
 }
 
+bool Transaction::hasWitness() const {
+    // Check if any witness data exists
+    if (witnesses.empty()) {
+        return false;
+    }
+
+    for (const auto& witness : witnesses) {
+        if (!witness.isEmpty()) {
+            return true;
+        }
+    }
+
+    return false;
+}
+
 size_t Transaction::getSize() const {
+    // Full size including witness data
     return serialize().size();
+}
+
+size_t Transaction::getBaseSize() const {
+    // Size without witness data (base transaction)
+    return serializeWitnessStripped().size();
+}
+
+size_t Transaction::getWeight() const {
+    // BIP-141 weight calculation: base_size * 3 + total_size
+    // This incentivizes witness data usage (witness bytes count less)
+    return getBaseSize() * 3 + getSize();
 }
 
 uint64_t Transaction::getTotalOutput() const {
