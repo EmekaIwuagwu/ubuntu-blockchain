@@ -1198,7 +1198,7 @@ done
 ./ubu-cli getnetworkinfo
 
 # Add seed node
-./ubu-cli addnode "seed.ubuntu-blockchain.com:8333" "add"
+./ubu-cli addnode "seed.ubuntublockchain.xyz:8333" "add"
 ```
 
 ---
@@ -1381,4 +1381,4 @@ grep rpc ~/.ubuntu-blockchain/ubuntu.conf
 
 ---
 
-For more information, visit: https://docs.ubuntu-blockchain.com
+For more information, visit: https://docs.ubuntublockchain.xyz

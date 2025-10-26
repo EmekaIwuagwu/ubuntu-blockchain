@@ -702,8 +702,8 @@ MIT License - See LICENSE file for details
 ## Contact
 
 - **GitHub**: https://github.com/EmekaIwuagwu/ubuntu-blockchain
-- **Email**: dev@ubuntu-blockchain.com
-- **Website**: https://ubuntu-blockchain.com
+- **Email**: dev@ubuntublockchain.xyz
+- **Website**: https://ubuntublockchain.xyz
 - **Discord**: https://discord.gg/ubuntu-blockchain
 
 ---

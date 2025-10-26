@@ -581,7 +581,7 @@ cmake -DCMAKE_BUILD_TYPE=Debug -DSANITIZE_ADDRESS=ON
 
 ### Vulnerability Disclosure
 
-**Security Contact:** security@ubuntu-blockchain.org
+**Security Contact:** security@ubuntublockchain.xyz
 
 **Responsible Disclosure Policy:**
 
@@ -764,11 +764,11 @@ Ubuntu Blockchain is more than a project—it's a **movement for African economi
 
 **🌍 Ubuntu Blockchain - Made in Africa, For Africa**
 
-- **Website:** https://ubuntu-blockchain.org
-- **Email (General):** info@ubuntu-blockchain.org
-- **Email (Development):** dev@ubuntu-blockchain.org
-- **Email (Security):** security@ubuntu-blockchain.org
-- **Email (Partnership):** partners@ubuntu-blockchain.org
+- **Website:** https://ubuntublockchain.xyz
+- **Email (General):** info@ubuntublockchain.xyz
+- **Email (Development):** dev@ubuntublockchain.xyz
+- **Email (Security):** security@ubuntublockchain.xyz
+- **Email (Partnership):** partners@ubuntublockchain.xyz
 - **Discord:** https://discord.gg/ubuntu-blockchain
 - **Twitter/X:** @UbuntuBlockchain
 - **Telegram:** @UbuntuBlockchainAfrica

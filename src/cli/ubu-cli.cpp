@@ -82,7 +82,7 @@ void printUsage(const char* programName) {
     std::cout << "  listtransactions     List wallet transactions\n";
     std::cout << "  getpeerinfo          Get connected peers\n";
     std::cout << "  stop                 Stop the daemon\n\n";
-    std::cout << "For more commands, see: https://docs.ubuntu-blockchain.com/rpc\n";
+    std::cout << "For more commands, see: https://docs.ubuntublockchain.xyz/rpc\n";
 }
 
 int main(int argc, char* argv[]) {
