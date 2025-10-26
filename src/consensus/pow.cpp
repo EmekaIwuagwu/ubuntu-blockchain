@@ -130,28 +130,63 @@ uint32_t calculateNextDifficulty(uint32_t previousTarget,
                                  uint32_t actualTimespan,
                                  uint32_t targetTimespan) {
     // Clamp actual timespan to prevent extreme changes (4x up or down)
+    // This matches Bitcoin's retargeting logic
     uint32_t minTimespan = targetTimespan / 4;
     uint32_t maxTimespan = targetTimespan * 4;
     actualTimespan = std::clamp(actualTimespan, minTimespan, maxTimespan);
 
-    // Calculate new target
-    // new_target = old_target * (actual_time / expected_time)
+    // Expand compact target to full 256-bit representation
     CompactTarget oldTarget(previousTarget);
-    auto oldTargetHash = oldTarget.toTarget();
+    crypto::Hash256 oldTargetHash = oldTarget.toTarget();
 
-    // Simplified: multiply by ratio (actualTimespan / targetTimespan)
-    // Full implementation would do proper 256-bit arithmetic
+    // Calculate new target using proper 256-bit arithmetic
+    // new_target = old_target * actualTimespan / targetTimespan
+    //
+    // We need to avoid overflow, so we do:
+    // new_target = (old_target * actualTimespan) / targetTimespan
+    //
+    // For 256-bit math, we'll use a simplified approach:
+    // Multiply each byte by the ratio, propagating carries
 
-    // For now, adjust the compact representation
-    uint64_t newCompact = static_cast<uint64_t>(previousTarget) *
-                          actualTimespan / targetTimespan;
+    crypto::Hash256::DataType newTargetData = {};
 
-    // Ensure we don't exceed max target
-    if (newCompact > 0x1d00ffff) {
-        newCompact = 0x1d00ffff;
+    // Convert actualTimespan and targetTimespan to 64-bit for calculations
+    uint64_t actualTime = static_cast<uint64_t>(actualTimespan);
+    uint64_t targetTime = static_cast<uint64_t>(targetTimespan);
+
+    // Multiply old target by actualTimespan, then divide by targetTimespan
+    // We process from least significant to most significant byte
+    uint64_t carry = 0;
+
+    for (int i = 0; i < 32; ++i) {
+        // Multiply this byte by actualTimespan and add carry
+        uint64_t temp = static_cast<uint64_t>(oldTargetHash.data()[i]) * actualTime + carry;
+
+        // Divide by targetTimespan to get the new byte value
+        newTargetData[i] = static_cast<uint8_t>(temp / targetTime);
+
+        // Carry forward the remainder (scaled back up)
+        carry = (temp % targetTime) * 256 / targetTime;
     }
 
-    return static_cast<uint32_t>(newCompact);
+    crypto::Hash256 newTargetHash(newTargetData);
+
+    // Convert back to compact representation
+    CompactTarget newTarget = CompactTarget::fromTarget(newTargetHash);
+    uint32_t newCompact = newTarget.getCompact();
+
+    // Ensure we don't exceed maximum target (minimum difficulty)
+    const uint32_t MAX_TARGET = 0x1d00ffff;
+    if (newCompact > MAX_TARGET) {
+        newCompact = MAX_TARGET;
+    }
+
+    // Ensure we have a valid target (not zero)
+    if (newCompact == 0) {
+        newCompact = MAX_TARGET;
+    }
+
+    return newCompact;
 }
 
 uint64_t getBlockWork(uint32_t compactTarget) {

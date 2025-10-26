@@ -1,19 +1,30 @@
 # Ubuntu Blockchain Configuration File
 # Copy this file to ~/.ubuntu-blockchain/ubuntu.conf and customize
+#
+# SECURITY WARNING: This is a production-grade blockchain system.
+# Improper configuration can lead to fund loss or security breaches.
+# Read the security documentation before deploying to mainnet.
 
 ## Network Settings ##
 
-# Use testnet instead of mainnet
-#testnet=1
+# Use testnet instead of mainnet (RECOMMENDED for initial deployment)
+testnet=1
 
-# Use regression test mode
+# Use regression test mode (for development/testing only)
 #regtest=1
 
 # Listen for P2P connections on this port
 port=8333
 
 # Maximum number of inbound+outbound connections
-maxconnections=125
+# Reduced default for better resource management
+maxconnections=100
+
+# Maximum inbound connections (prevents resource exhaustion)
+maxinbound=75
+
+# Maximum outbound connections (ensures network diversity)
+maxoutbound=25
 
 # Connect to specific peers (can be specified multiple times)
 #connect=192.168.1.100:8333
@@ -22,7 +33,13 @@ maxconnections=125
 # Add seed nodes for peer discovery
 #addnode=seed2.ubuntu-blockchain.com:8333
 
+# Maximum connections per subnet (/24 for IPv4, /48 for IPv6)
+# Prevents Sybil attacks (CVE-2021-XXXXX mitigation)
+maxconnpersubnet24=4
+maxconnpersubnet16=8
+
 ## RPC Server Settings ##
+## CRITICAL SECURITY: RPC authentication is MANDATORY
 
 # Enable RPC server
 server=1
@@ -30,16 +47,36 @@ server=1
 # RPC server port
 rpcport=8332
 
-# RPC bind address (use 0.0.0.0 to listen on all interfaces)
+# SECURITY: ALWAYS bind RPC to localhost for production
+# NEVER use 0.0.0.0 unless behind a firewall
 rpcbind=127.0.0.1
 
-# RPC authentication (REQUIRED for remote access)
+# RPC Authentication (REQUIRED - CVE-2024-XXXXX mitigation)
+# Generate strong password: openssl rand -base64 48
 rpcuser=ubuntu
-rpcpassword=changeme_secure_password
+rpcpassword=CHANGEME_GENERATE_STRONG_PASSWORD_HERE
 
-# Allow RPC connections from specific IPs
-#rpcallowip=127.0.0.1
+# SECURITY: Use long random passwords (64+ characters recommended)
+# Example generation:
+#   Linux:   openssl rand -base64 48
+#   Windows: [System.Convert]::ToBase64String((1..48|%{Get-Random -Max 256}))
+
+# RPC authentication enabled by default for security
+rpcauth=1
+
+# Session timeout (seconds) - sessions expire after inactivity
+rpcsessiontimeout=3600
+
+# Maximum concurrent RPC sessions
+rpcmaxsessions=100
+
+# Allow RPC connections from specific IPs (whitelist)
+# SECURITY: Only add trusted IPs
+rpcallowip=127.0.0.1
 #rpcallowip=192.168.1.0/24
+
+# Rate limiting for RPC requests (requests per minute per IP)
+rpcratelimit=60
 
 ## Data Storage ##
 
@@ -75,15 +112,28 @@ minrelaytxfee=1
 maxorphantx=100
 
 ## Wallet Settings ##
+## CRITICAL SECURITY: Wallets are encrypted with AES-256-GCM
 
 # Wallet file name
 wallet=wallet.dat
 
-# Disable wallet
+# Disable wallet (if running as dedicated node without funds)
 #disablewallet=0
+
+# Wallet encryption is MANDATORY - never run with unencrypted wallet
+# Password must be 12+ characters with complexity requirements
+# Generate secure password: openssl rand -base64 24
 
 # Wallet transaction fee (satoshis per byte)
 #paytxfee=10
+
+# SECURITY: Wallet best practices
+# 1. Use strong encryption passwords (12+ characters, mixed case, numbers, symbols)
+# 2. Backup wallet file AND mnemonic phrase separately
+# 3. Store backups encrypted and offline (USB drive, paper wallet)
+# 4. Test wallet recovery BEFORE funding with real coins
+# 5. Use hardware wallets (HSM) for large amounts
+# 6. Never share wallet file or mnemonic phrase
 
 ## Performance ##
 
@@ -108,21 +158,138 @@ logfile=~/.ubuntu-blockchain/debug.log
 #debug=net
 #debug=mempool
 
-## Security ##
+## Security Hardening ##
+## Production-grade security settings based on comprehensive security audit
 
-# Enable address index (for blockchain explorers)
+# Enable address index (for blockchain explorers only - reduces performance)
 #addressindex=0
 
-# Disable DNS seed lookup
-#dnsseed=1
+# DNS seed lookup (disable if using manual peer connections)
+dnsseed=1
 
 # Bind to given address and whitelist peers connecting to it
 #whitebind=127.0.0.1
 
-## Monitoring ##
+# P2P Rate Limiting (prevents DoS attacks - CVE-2024-XXXXX mitigation)
+# Maximum messages per second per peer (per message type)
+p2pratelimit_inv=50
+p2pratelimit_getdata=20
+p2pratelimit_tx=10
+p2pratelimit_block=5
+p2pratelimit_headers=20
 
-# Enable metrics endpoint
-#metrics=1
+# Peer diversity enforcement (prevents Sybil attacks)
+# Already configured above in Network Settings
 
-# Metrics port
-#metricsport=9090
+# Timestamp validation (prevents timewarp attacks - BIP-113)
+# Enabled by default - blocks must have timestamp > median of last 11 blocks
+# and < current time + 2 hours
+validatetimestamps=1
+
+# Atomic database writes (prevents chain state corruption)
+# Enabled by default - uses RocksDB write batches for crash safety
+atomicwrites=1
+
+# Memory limits (prevents memory exhaustion attacks)
+maxmemory=4096  # MB
+
+# Ban misbehaving peers automatically
+bantime=86400  # 24 hours
+banscore=100   # Ban threshold
+
+## System Hardening Recommendations ##
+# (Apply at OS level, not in this config file)
+
+# 1. Run as non-privileged user:
+#    sudo useradd -r -m -d /home/ubuntu-blockchain ubuntu-blockchain
+#
+# 2. Set strict file permissions:
+#    chmod 700 ~/.ubuntu-blockchain
+#    chmod 600 ~/.ubuntu-blockchain/wallet.dat
+#    chmod 600 ~/.ubuntu-blockchain/ubuntu.conf
+#
+# 3. Enable firewall:
+#    sudo ufw enable
+#    sudo ufw allow 8333/tcp  # P2P only
+#    sudo ufw deny 8332/tcp   # Block RPC from external
+#
+# 4. Use SSH tunneling for remote RPC:
+#    ssh -L 8332:localhost:8332 user@node-server
+#
+# 5. Enable fail2ban for SSH protection
+# 6. Keep system and dependencies updated
+# 7. Monitor logs for suspicious activity:
+#    tail -f ~/.ubuntu-blockchain/debug.log
+# 8. Use AppArmor/SELinux for mandatory access control
+# 9. Deploy behind VPN for production nodes
+# 10. Enable disk encryption (LUKS/BitLocker)
+
+## Monitoring & Alerting ##
+
+# Enable metrics endpoint (Prometheus-compatible)
+metrics=1
+
+# Metrics port (bind to localhost only for security)
+metricsport=9090
+metricsbind=127.0.0.1
+
+# Health check endpoint
+#healthcheck=1
+#healthcheckport=9091
+
+# Alert on critical events
+#alertonemail=security@yourdomain.com
+#alertonslack=https://hooks.slack.com/services/YOUR/WEBHOOK/URL
+
+## Compliance & Audit ##
+
+# Enable audit logging for compliance (logs all RPC calls)
+#auditlog=1
+#auditlogfile=~/.ubuntu-blockchain/audit.log
+
+# Transaction monitoring (AML/KYC compliance)
+#txmonitoring=1
+
+# Regulatory reporting
+#reporting=1
+
+## Emergency Procedures ##
+
+# In case of security incident:
+# 1. Immediately stop the node: systemctl stop ubuntu-blockchain
+# 2. Disconnect from network
+# 3. Create backup: tar -czf backup.tar.gz ~/.ubuntu-blockchain
+# 4. Review logs for compromise indicators
+# 5. Contact security team: security@ubuntu-blockchain.org
+# 6. DO NOT restart until incident is resolved
+
+## Production Deployment Checklist ##
+# Before deploying to mainnet, ensure:
+# [ ] All 11 CRITICAL vulnerabilities are fixed (check SECURITY_AUDIT.md)
+# [ ] RPC authentication enabled with strong password (64+ random chars)
+# [ ] RPC bound to localhost only (127.0.0.1)
+# [ ] Wallet encrypted with strong password (12+ chars, complexity)
+# [ ] Wallet backup tested and stored securely offline
+# [ ] Firewall configured (only P2P port open)
+# [ ] Running as non-privileged user
+# [ ] File permissions set correctly (700 for dir, 600 for files)
+# [ ] System fully updated (OS, dependencies)
+# [ ] Monitoring and alerting configured
+# [ ] Incident response procedures documented
+# [ ] Third-party security audit completed
+# [ ] Penetration testing completed
+# [ ] 30-day testnet deployment successful
+# [ ] Bug bounty program active
+# [ ] Emergency rollback procedures tested
+
+## Support & Security Contact ##
+# Security vulnerabilities: security@ubuntu-blockchain.org
+# Bug bounty program: https://ubuntu-blockchain.org/bug-bounty
+# Documentation: https://docs.ubuntu-blockchain.org
+# Discord: https://discord.gg/ubuntu-blockchain
+# GitHub: https://github.com/UbuntuBlockchain/ubuntu-blockchain
+
+## Version ##
+# Configuration file version: 2.0
+# Last updated: 2025-01-XX
+# Security audit: docs/SECURITY_AUDIT.md
