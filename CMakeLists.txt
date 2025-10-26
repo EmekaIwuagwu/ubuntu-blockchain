@@ -40,6 +40,7 @@ option(BUILD_TESTS "Build test suite" ON)
 option(BUILD_BENCHMARKS "Build benchmarks" ON)
 option(ENABLE_FUZZING "Enable fuzzing support" OFF)
 option(USE_SANITIZERS "Enable address and undefined behavior sanitizers" OFF)
+option(ENABLE_PEG "Enable USD peg mechanism module" ON)
 
 # Sanitizers (for development)
 if(USE_SANITIZERS AND NOT MSVC)
@@ -115,6 +116,21 @@ add_library(ubuntu_core STATIC
     src/metrics/metrics.cpp
 )
 
+# Peg module (conditional)
+if(ENABLE_PEG)
+    target_sources(ubuntu_core PRIVATE
+        src/monetary/peg_controller.cpp
+        src/monetary/peg_state_serialization.cpp
+        src/monetary/oracle_stub.cpp
+        src/monetary/peg_cli.cpp
+        src/ledger/ledger_adapter.cpp
+    )
+    target_compile_definitions(ubuntu_core PUBLIC ENABLE_PEG)
+    message(STATUS "Peg module: ENABLED")
+else()
+    message(STATUS "Peg module: DISABLED")
+endif()
+
 target_link_libraries(ubuntu_core PUBLIC
     OpenSSL::SSL
     OpenSSL::Crypto
@@ -155,6 +171,30 @@ if(BUILD_TESTS)
     )
 
     add_test(NAME UbuntuBlockchainTests COMMAND ubu_tests)
+
+    # Peg module tests (conditional)
+    if(ENABLE_PEG)
+        add_executable(peg_controller_tests
+            tests/unit/peg_controller_tests.cpp
+        )
+        target_link_libraries(peg_controller_tests PRIVATE
+            ubuntu_core
+            GTest::gtest
+            GTest::gtest_main
+            GTest::gmock
+        )
+        add_test(NAME PegControllerTests COMMAND peg_controller_tests)
+
+        add_executable(peg_integration_test
+            tests/integration/peg_integration_test.cpp
+        )
+        target_link_libraries(peg_integration_test PRIVATE
+            ubuntu_core
+            GTest::gtest
+            GTest::gtest_main
+        )
+        add_test(NAME PegIntegrationTest COMMAND peg_integration_test)
+    endif()
 endif()
 
 # Benchmarks
@@ -172,6 +212,13 @@ if(BUILD_BENCHMARKS)
         benchmark::benchmark
         benchmark::benchmark_main
     )
+endif()
+
+# Peg simulator tool (conditional)
+if(ENABLE_PEG)
+    add_executable(peg_simulator tools/peg_simulator.cpp)
+    target_link_libraries(peg_simulator PRIVATE ubuntu_core)
+    install(TARGETS peg_simulator RUNTIME DESTINATION bin)
 endif()
 
 # Installation rules
@@ -194,4 +241,5 @@ message(STATUS "Build tests: ${BUILD_TESTS}")
 message(STATUS "Build benchmarks: ${BUILD_BENCHMARKS}")
 message(STATUS "Enable fuzzing: ${ENABLE_FUZZING}")
 message(STATUS "Use sanitizers: ${USE_SANITIZERS}")
+message(STATUS "Enable peg module: ${ENABLE_PEG}")
 message(STATUS "======================================")
