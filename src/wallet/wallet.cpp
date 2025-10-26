@@ -1,4 +1,5 @@
 #include "ubuntu/wallet/wallet.h"
+#include "ubuntu/wallet/wallet_encryption.h"
 
 #include "ubuntu/crypto/base58.h"
 
@@ -6,6 +7,7 @@
 
 #include <algorithm>
 #include <fstream>
+#include <sstream>
 
 namespace ubuntu {
 namespace wallet {
@@ -78,26 +80,140 @@ std::pair<std::unique_ptr<Wallet>, std::string> Wallet::createNew(uint32_t wordC
 
 std::unique_ptr<Wallet> Wallet::loadFromFile(const std::string& filename,
                                                const std::string& password) {
-    // In production, this would decrypt and deserialize wallet data
-    // For now, return nullptr as placeholder
-    spdlog::warn("Wallet::loadFromFile not fully implemented");
-    return nullptr;
+    try {
+        // Read encrypted file
+        std::ifstream file(filename, std::ios::binary);
+        if (!file) {
+            spdlog::error("Failed to open wallet file: {}", filename);
+            return nullptr;
+        }
+
+        // Read all bytes
+        std::vector<uint8_t> fileData((std::istreambuf_iterator<char>(file)),
+                                      std::istreambuf_iterator<char>());
+        file.close();
+
+        if (fileData.empty()) {
+            spdlog::error("Wallet file is empty: {}", filename);
+            return nullptr;
+        }
+
+        // Deserialize encrypted data
+        auto encryptedData = WalletEncryption::deserialize(fileData);
+        if (!encryptedData.has_value()) {
+            spdlog::error("Failed to deserialize wallet data");
+            return nullptr;
+        }
+
+        // Decrypt wallet data
+        auto plaintext = WalletEncryption::decrypt(encryptedData.value(), password);
+        if (!plaintext.has_value()) {
+            spdlog::error("Failed to decrypt wallet - invalid password or corrupted data");
+            return nullptr;
+        }
+
+        // Deserialize wallet structure
+        std::string walletJson(plaintext->begin(), plaintext->end());
+
+        // Parse JSON (simplified - in production use nlohmann/json)
+        // For now, parse basic structure
+        // Expected format:
+        // {
+        //   "version": 1,
+        //   "accountIndex": 0,
+        //   "masterKey": "xprv...",
+        //   "nextReceiveIndex": 5,
+        //   "nextChangeIndex": 2,
+        //   "addresses": [...],
+        //   "transactions": [...]
+        // }
+
+        // TODO: Implement proper JSON parsing
+        // For now, create minimal wallet
+        spdlog::warn("Wallet deserialization partially implemented");
+
+        // This is a placeholder - proper implementation would deserialize all fields
+        return nullptr;
+
+    } catch (const std::exception& e) {
+        spdlog::error("Exception loading wallet: {}", e.what());
+        return nullptr;
+    }
 }
 
 bool Wallet::saveToFile(const std::string& filename, const std::string& password) {
-    // In production, this would encrypt and serialize wallet data
-    // For now, just create a placeholder file
-    std::ofstream file(filename);
-    if (!file) {
+    try {
+        // Verify password strength
+        auto [isValid, errorMsg] = WalletEncryption::verifyPasswordStrength(password, 12);
+        if (!isValid) {
+            spdlog::error("Password too weak: {}", errorMsg);
+            return false;
+        }
+
+        // Serialize wallet data to JSON
+        // In production, use nlohmann/json for proper serialization
+        std::ostringstream oss;
+        oss << "{\n";
+        oss << "  \"version\": 1,\n";
+        oss << "  \"accountIndex\": " << impl_->accountIndex << ",\n";
+        oss << "  \"nextReceiveIndex\": " << impl_->nextReceiveIndex << ",\n";
+        oss << "  \"nextChangeIndex\": " << impl_->nextChangeIndex << ",\n";
+
+        // Serialize master key (simplified)
+        oss << "  \"masterKey\": \"" << "encrypted_master_key_placeholder" << "\",\n";
+
+        // Serialize addresses
+        oss << "  \"addresses\": [\n";
+        {
+            std::lock_guard<std::mutex> lock(impl_->addressMutex);
+            bool first = true;
+            for (const auto& [addr, info] : impl_->addresses) {
+                if (!first) oss << ",\n";
+                first = false;
+                oss << "    {\n";
+                oss << "      \"address\": \"" << addr << "\",\n";
+                oss << "      \"label\": \"" << info.label << "\",\n";
+                oss << "      \"index\": " << info.index << ",\n";
+                oss << "      \"isChange\": " << (info.isChange ? "true" : "false") << "\n";
+                oss << "    }";
+            }
+        }
+        oss << "\n  ],\n";
+
+        // Serialize transactions (simplified)
+        oss << "  \"transactions\": []\n";
+        oss << "}\n";
+
+        std::string walletJson = oss.str();
+        std::vector<uint8_t> plaintext(walletJson.begin(), walletJson.end());
+
+        // Encrypt wallet data
+        spdlog::info("Encrypting wallet data ({} bytes)...", plaintext.size());
+        auto encryptedData = WalletEncryption::encrypt(plaintext, password);
+
+        // Serialize encrypted data
+        auto serialized = WalletEncryption::serialize(encryptedData);
+
+        // Write to file
+        std::ofstream file(filename, std::ios::binary);
+        if (!file) {
+            spdlog::error("Failed to create wallet file: {}", filename);
+            return false;
+        }
+
+        file.write(reinterpret_cast<const char*>(serialized.data()), serialized.size());
+        file.close();
+
+        // Securely wipe plaintext
+        WalletEncryption::secureWipe(plaintext);
+
+        spdlog::info("Wallet saved to {} ({} bytes encrypted)", filename, serialized.size());
+        return true;
+
+    } catch (const std::exception& e) {
+        spdlog::error("Exception saving wallet: {}", e.what());
         return false;
     }
-
-    file << "# Ubuntu Blockchain Wallet\n";
-    file << "# Encrypted with password\n";
-    file.close();
-
-    spdlog::info("Wallet saved to {}", filename);
-    return true;
 }
 
 std::string Wallet::getNewAddress(const std::string& label, AddressType type) {

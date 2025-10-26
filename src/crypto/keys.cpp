@@ -7,10 +7,18 @@
 #include <openssl/rand.h>
 
 #include <algorithm>
+#include <chrono>
 #include <cstring>
 #include <iomanip>
 #include <sstream>
 #include <stdexcept>
+
+#ifdef _WIN32
+#include <windows.h>
+#include <process.h>
+#else
+#include <unistd.h>
+#endif
 
 namespace ubuntu {
 namespace crypto {
@@ -31,15 +39,82 @@ PrivateKey::PrivateKey(std::span<const uint8_t> data) {
 }
 
 PrivateKey PrivateKey::generate() {
-    DataType data;
-    if (RAND_bytes(data.data(), SIZE) != 1) {
-        throw std::runtime_error("Failed to generate random private key");
+    // Step 1: Verify RNG is properly seeded
+    if (RAND_status() != 1) {
+        throw std::runtime_error("OpenSSL RNG not properly seeded");
     }
 
-    // Ensure key is within valid range for secp256k1
-    // Key must be < n where n is the order of the curve
-    // For simplicity, we rely on the tiny probability of generating invalid key
-    return PrivateKey(data);
+    // Step 2: Mix additional system entropy
+    // Add entropy from various system sources
+    uint8_t entropyBuffer[32];
+
+    // Mix timestamp
+    auto now = std::chrono::high_resolution_clock::now();
+    auto nanos = now.time_since_epoch().count();
+    RAND_add(&nanos, sizeof(nanos), 0.5);  // 0.5 bytes of entropy estimate
+
+    // Mix process ID and thread ID (if available)
+    #ifdef _WIN32
+    DWORD pid = GetCurrentProcessId();
+    DWORD tid = GetCurrentThreadId();
+    RAND_add(&pid, sizeof(pid), 0.1);
+    RAND_add(&tid, sizeof(tid), 0.1);
+    #else
+    pid_t pid = getpid();
+    RAND_add(&pid, sizeof(pid), 0.1);
+    #endif
+
+    // Step 3: secp256k1 curve order (n)
+    // n = FFFFFFFF FFFFFFFF FFFFFFFF FFFFFFFE BAAEDCE6 AF48A03B BFD25E8C D0364141
+    const uint8_t CURVE_ORDER[] = {
+        0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF,
+        0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFE,
+        0xBA, 0xAE, 0xDC, 0xE6, 0xAF, 0x48, 0xA0, 0x3B,
+        0xBF, 0xD2, 0x5E, 0x8C, 0xD0, 0x36, 0x41, 0x41
+    };
+
+    // Step 4: Generate key with validation
+    // Try up to 10 times to generate valid key
+    const int MAX_ATTEMPTS = 10;
+
+    for (int attempt = 0; attempt < MAX_ATTEMPTS; ++attempt) {
+        DataType data;
+
+        // Generate random bytes
+        if (RAND_bytes(data.data(), SIZE) != 1) {
+            throw std::runtime_error("Failed to generate random bytes");
+        }
+
+        // Verify key is not zero
+        bool allZeros = std::all_of(data.begin(), data.end(),
+                                   [](uint8_t b) { return b == 0; });
+        if (allZeros) {
+            continue;  // Try again
+        }
+
+        // Verify key < curve order (compare as big-endian integers)
+        bool lessThanOrder = false;
+        for (size_t i = 0; i < SIZE; ++i) {
+            if (data[i] < CURVE_ORDER[i]) {
+                lessThanOrder = true;
+                break;
+            } else if (data[i] > CURVE_ORDER[i]) {
+                lessThanOrder = false;
+                break;
+            }
+            // Equal: continue checking next byte
+        }
+
+        if (lessThanOrder) {
+            // Valid key generated
+            return PrivateKey(data);
+        }
+
+        // Invalid key: try again
+    }
+
+    // Failed to generate valid key after MAX_ATTEMPTS
+    throw std::runtime_error("Failed to generate valid private key within curve order");
 }
 
 PrivateKey PrivateKey::fromHex(const std::string& hex) {

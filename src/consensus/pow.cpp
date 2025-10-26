@@ -173,6 +173,69 @@ uint64_t getBlockWork(uint32_t compactTarget) {
     return 0xFFFFFFFFFFFFFFFFULL / targetValue;
 }
 
+uint64_t calculateMedianTimePast(const std::vector<uint64_t>& timestamps) {
+    if (timestamps.empty()) {
+        return 0;
+    }
+
+    // Create mutable copy for sorting
+    std::vector<uint64_t> sortedTimestamps = timestamps;
+    std::sort(sortedTimestamps.begin(), sortedTimestamps.end());
+
+    // Return median value
+    size_t medianIndex = sortedTimestamps.size() / 2;
+
+    if (sortedTimestamps.size() % 2 == 0 && sortedTimestamps.size() > 1) {
+        // Even number of elements: average of middle two
+        return (sortedTimestamps[medianIndex - 1] + sortedTimestamps[medianIndex]) / 2;
+    } else {
+        // Odd number of elements: middle element
+        return sortedTimestamps[medianIndex];
+    }
+}
+
+bool validateTimestamp(uint64_t blockTimestamp,
+                       const std::vector<uint64_t>& previousTimestamps,
+                       uint64_t currentTime) {
+    // 1. Check Median-Time-Past (MTP) rule
+    // Block timestamp must be greater than MTP of last 11 blocks
+    if (!previousTimestamps.empty()) {
+        uint64_t medianTimePast = calculateMedianTimePast(previousTimestamps);
+
+        if (blockTimestamp <= medianTimePast) {
+            // Timestamp too old - fails MTP check
+            return false;
+        }
+    }
+
+    // 2. Check future time limit
+    // Block timestamp must not be more than 2 hours in the future
+    if (!checkFutureTimeLimit(blockTimestamp, currentTime)) {
+        return false;
+    }
+
+    return true;
+}
+
+bool checkFutureTimeLimit(uint64_t blockTimestamp, uint64_t currentTime) {
+    // Get current time if not provided
+    if (currentTime == 0) {
+        currentTime = std::chrono::duration_cast<std::chrono::seconds>(
+                          std::chrono::system_clock::now().time_since_epoch())
+                          .count();
+    }
+
+    // Maximum allowed time drift: 2 hours (7200 seconds)
+    const uint64_t MAX_FUTURE_BLOCK_TIME = 7200;
+
+    // Block timestamp must not be more than 2 hours in the future
+    if (blockTimestamp > currentTime + MAX_FUTURE_BLOCK_TIME) {
+        return false;
+    }
+
+    return true;
+}
+
 }  // namespace PoW
 
 // ============================================================================

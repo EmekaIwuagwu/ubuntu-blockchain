@@ -102,6 +102,44 @@ uint32_t calculateNextDifficulty(uint32_t previousTarget,
  */
 uint64_t getBlockWork(uint32_t compactTarget);
 
+/**
+ * @brief Calculate Median-Time-Past (MTP) from previous blocks
+ *
+ * Implements BIP-113: Median time past as endpoint for locktime calculations.
+ * Prevents miners from manipulating timestamps.
+ *
+ * @param timestamps Vector of previous block timestamps (last 11 blocks)
+ * @return Median timestamp
+ */
+uint64_t calculateMedianTimePast(const std::vector<uint64_t>& timestamps);
+
+/**
+ * @brief Validate block timestamp
+ *
+ * Checks:
+ * 1. Timestamp must be greater than Median-Time-Past of last 11 blocks
+ * 2. Timestamp must not be more than 2 hours in the future
+ *
+ * @param blockTimestamp Block timestamp to validate
+ * @param previousTimestamps Timestamps of previous 11 blocks (for MTP)
+ * @param currentTime Current network time (optional, uses system time if 0)
+ * @return true if timestamp is valid
+ */
+bool validateTimestamp(uint64_t blockTimestamp,
+                       const std::vector<uint64_t>& previousTimestamps,
+                       uint64_t currentTime = 0);
+
+/**
+ * @brief Check if timestamp is in acceptable future range
+ *
+ * Blocks with timestamps more than 2 hours in the future are rejected.
+ *
+ * @param blockTimestamp Block timestamp
+ * @param currentTime Current network time (optional, uses system time if 0)
+ * @return true if timestamp is not too far in future
+ */
+bool checkFutureTimeLimit(uint64_t blockTimestamp, uint64_t currentTime = 0);
+
 }  // namespace PoW
 
 /**
