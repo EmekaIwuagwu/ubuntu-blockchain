@@ -12,6 +12,7 @@ namespace rpc {
 
 // Forward declarations
 class JsonValue;
+class AuthenticationManager;
 
 /**
  * @brief JSON value type for RPC
@@ -144,6 +145,32 @@ public:
      */
     void setAuthEnabled(bool enabled);
 
+    /**
+     * @brief Process authenticated request
+     *
+     * @param request JSON-RPC request string
+     * @param authToken Session token for authentication (optional)
+     * @param clientIP Client IP address for rate limiting (optional)
+     * @return JSON-RPC response string
+     */
+    std::string processAuthenticatedRequest(const std::string& request,
+                                           const std::string& authToken = "",
+                                           const std::string& clientIP = "");
+
+    /**
+     * @brief Get authentication manager
+     *
+     * @return Reference to authentication manager
+     */
+    AuthenticationManager& getAuthManager();
+
+    /**
+     * @brief Get authentication manager (const)
+     *
+     * @return Const reference to authentication manager
+     */
+    const AuthenticationManager& getAuthManager() const;
+
 private:
     struct Impl;
     std::unique_ptr<Impl> impl_;
@@ -204,6 +231,14 @@ constexpr int RPC_WALLET_PASSPHRASE_INCORRECT = -14;
 constexpr int RPC_WALLET_WRONG_ENC_STATE = -15;
 constexpr int RPC_WALLET_ENCRYPTION_FAILED = -16;
 constexpr int RPC_WALLET_ALREADY_UNLOCKED = -17;
+
+// Authentication errors
+constexpr int RPC_AUTH_REQUIRED = -18;
+constexpr int RPC_AUTH_INVALID_CREDENTIALS = -19;
+constexpr int RPC_AUTH_SESSION_EXPIRED = -32;
+constexpr int RPC_AUTH_RATE_LIMIT = -33;
+constexpr int RPC_AUTH_IP_BANNED = -34;
+constexpr int RPC_AUTH_MAX_SESSIONS = -35;
 }  // namespace ErrorCode
 
 }  // namespace rpc
